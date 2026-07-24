@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: perfumes-db
+    environment:
+      POSTGRES_USER: perfumes_user
+      POSTGRES_PASSWORD: perfumes_password
+      POSTGRES_DB: perfumes_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Recuerda que debes tener tu archivo init.sql en la carpeta backend/ para que esto funcione
+      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - perfumes-network
+
+  backend:
+    # ¡Aquí está la magia! Ya no usamos "build", usamos tu imagen en la nube
+    image: arinico/perfumes-backend:v1
+    container_name: perfumes-backend
+    environment:
+      DB_HOST: db
+      DB_USER: perfumes_user
+      DB_PASSWORD: perfumes_password
+      DB_NAME: perfumes_db
+      DB_PORT: 5432
+    ports:
+      - "5000:5000"
+    depends_on:
+      - db
+    networks:
+      - perfumes-network
+
+  frontend:
+    # Tu imagen del frontend directamente desde Docker Hub
+    image: arinico/perfumes-frontend:v1
+    container_name: perfumes-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - perfumes-network
+
+networks:
+  perfumes-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

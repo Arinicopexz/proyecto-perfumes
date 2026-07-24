@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Catálogo de Perfumes</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+  <div class="container mt-5">
+    <h1 class="text-center mb-4">Gestión de Perfumes</h1>
+    <div class="row">
+      <!-- Formulario -->
+      <div class="col-md-4">
+        <div class="card p-3 mb-4 shadow-sm">
+          <h3 id="formTitle">Añadir Perfume</h3>
+          <form id="perfumeForm">
+            <input type="hidden" id="perfumeId">
+            <div class="mb-2">
+              <label>Nombre</label>
+              <input type="text" id="nombre" class="form-control" required>
+            </div>
+            <div class="mb-2">
+              <label>Marca</label>
+              <input type="text" id="marca" class="form-control" required>
+            </div>
+            <div class="mb-2">
+              <label>Género</label>
+              <select id="genero" class="form-control">
+                <option value="Masculino">Masculino</option>
+                <option value="Femenino">Femenino</option>
+                <option value="Unisex">Unisex</option>
+              </select>
+            </div>
+            <div class="mb-2">
+              <label>Precio ($)</label>
+              <input type="number" step="0.01" id="precio" class="form-control" required>
+            </div>
+            <div class="mb-2">
+              <label>Volumen (ml)</label>
+              <input type="number" id="volumen_ml" class="form-control">
+            </div>
+            <div class="mb-2">
+              <label>Notas Olfativas</label>
+              <input type="text" id="notas_olfativas" class="form-control">
+            </div>
+            <div class="mb-3">
+              <label>Stock</label>
+              <input type="number" id="stock" class="form-control" value="0">
+            </div>
+            <button type="submit" class="btn btn-primary w-100" id="btnSubmit">Guardar</button>
+            <button type="button" class="btn btn-secondary w-100 mt-2 d-none" id="btnCancel" onclick="resetForm()">Cancelar</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Lista -->
+      <div class="col-md-8">
+        <input type="text" id="searchInput" class="form-control mb-3" placeholder="Buscar por nombre o marca..." onkeyup="searchPerfumes()">
+        <div class="row" id="perfumesList">
+          <!-- Los perfumes se cargarán aquí por JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = 'http://34.204.98.196:5000/api';
+    // Cargar perfumes al iniciar
+    document.addEventListener('DOMContentLoaded', fetchPerfumes);
+
+    async function fetchPerfumes(query = '') {
+      const url = query ? `${API_URL}/perfumes/search?q=${query}` : `${API_URL}/perfumes`;
+      try {
+        const response = await fetch(url);
+        const perfumes = await response.json();
+        renderPerfumes(perfumes);
+      } catch (error) {
+        console.error('Error:', error);
+      }
+    }
+
+    function renderPerfumes(perfumes) {
+      const list = document.getElementById('perfumesList');
+      list.innerHTML = '';
+      if(perfumes.length === 0) {
+        list.innerHTML = '<p class="text-center text-muted">No se encontraron perfumes.</p>';
+        return;
+      }
+      
+      perfumes.forEach(p => {
+        list.innerHTML += `
+          <div class="col-md-6 mb-3">
+            <div class="card shadow-sm h-100">
+              <div class="card-body">
+                <h5 class="card-title">${p.nombre} <span class="badge bg-secondary float-end">${p.genero}</span></h5>
+                <h6 class="card-subtitle mb-2 text-muted">${p.marca}</h6>
+                <p class="card-text mb-1"><strong>Precio:</strong> $${p.precio} | <strong>Volumen:</strong> ${p.volumen_ml}ml</p>
+                <p class="card-text mb-1"><strong>Notas:</strong> ${p.notas_olfativas}</p>
+                <p class="card-text text-success"><strong>Stock:</strong> ${p.stock} unidades</p>
+              </div>
+              <div class="card-footer bg-white text-end">
+                <button class="btn btn-sm btn-outline-primary me-2" onclick='editPerfume(${JSON.stringify(p).replace(/'/g, "&apos;")})'>Editar</button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deletePerfume(${p.id})">Eliminar</button>
+              </div>
+            </div>
+          </div>`;
+      });
+    }
+
+    function searchPerfumes() {
+      const query = document.getElementById('searchInput').value;
+      fetchPerfumes(query);
+    }
+
+    document.getElementById('perfumeForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('perfumeId').value;
+      const data = {
+        nombre: document.getElementById('nombre').value,
+        marca: document.getElementById('marca').value,
+        genero: document.getElementById('genero').value,
+        precio: document.getElementById('precio').value,
+        volumen_ml: document.getElementById('volumen_ml').value,
+        notas_olfativas: document.getElementById('notas_olfativas').value,
+        stock: document.getElementById('stock').value
+      };
+
+      const method = id ? 'PUT' : 'POST';
+      const url = id ? `${API_URL}/perfumes/${id}` : `${API_URL}/perfumes`;
+
+      try {
+        await fetch(url, {
+          method: method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        resetForm();
+        fetchPerfumes();
+      } catch (error) {
+        console.error('Error guardando:', error);
+      }
+    });
+
+    function editPerfume(p) {
+      document.getElementById('perfumeId').value = p.id;
+      document.getElementById('nombre').value = p.nombre;
+      document.getElementById('marca').value = p.marca;
+      document.getElementById('genero').value = p.genero;
+      document.getElementById('precio').value = p.precio;
+      document.getElementById('volumen_ml').value = p.volumen_ml;
+      document.getElementById('notas_olfativas').value = p.notas_olfativas;
+      document.getElementById('stock').value = p.stock;
+      
+      document.getElementById('formTitle').innerText = 'Editar Perfume';
+      document.getElementById('btnSubmit').innerText = 'Actualizar';
+      document.getElementById('btnCancel').classList.remove('d-none');
+    }
+
+    async function deletePerfume(id) {
+      if(confirm('¿Seguro que deseas eliminar este perfume?')) {
+        await fetch(`${API_URL}/perfumes/${id}`, { method: 'DELETE' });
+        fetchPerfumes();
+      }
+    }
+
+    function resetForm() {
+      document.getElementById('perfumeForm').reset();
+      document.getElementById('perfumeId').value = '';
+      document.getElementById('formTitle').innerText = 'Añadir Perfume';
+      document.getElementById('btnSubmit').innerText = 'Guardar';
+      document.getElementById('btnCancel').classList.add('d-none');
+    }
+  </script>
+</body>
+</html>
