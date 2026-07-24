@@ -1,1 +1,44 @@
+name: Construir y Desplegar Perfumes CRUD
 
+on:
+  push:
+    branches:
+      - main # Ojo: Revisa si en tu GitHub la rama se llama 'main' o 'master' y pon la correcta aquí
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+
+      # (Eliminamos los pasos de Java porque usamos Node.js y HTML)
+
+      - name: Login Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Construir imágenes de Perfumes
+        run: |
+          docker build -t arinico/perfumes-backend:latest ./backend
+          docker build -t arinico/perfumes-frontend:latest ./frontend
+
+      - name: Subir imágenes a Docker Hub
+        run: |
+          docker push arinico/perfumes-backend:latest
+          docker push arinico/perfumes-frontend:latest
+
+      - name: Conectar a EC2 y Desplegar
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: 100.54.233.31
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            sudo docker pull arinico/perfumes-backend:latest
+            sudo docker pull arinico/perfumes-frontend:latest
+            sudo docker compose down
+            sudo docker compose up -d
